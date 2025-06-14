@@ -1,9 +1,9 @@
 use ratatui::{
+    Terminal,
     backend::Backend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, List, ListItem, ListState},
-    Terminal,
 };
 
 use crossterm::event::{self, Event, KeyCode};
@@ -66,7 +66,9 @@ where
             let list = List::new(list_items)
                 .block(Block::default().title(title).borders(Borders::ALL))
                 .highlight_style(
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
                 )
                 .highlight_symbol("> ");
 
@@ -88,7 +90,10 @@ where
                     }
                     KeyCode::Enter => return Ok(items[selected].next),
                     KeyCode::Char(c) if c.is_ascii_digit() => {
-                        if let Some(index) = items.iter().position(|i| i.key == c.to_digit(10).unwrap() as u8) {
+                        if let Some(index) = items
+                            .iter()
+                            .position(|i| i.key == c.to_digit(10).unwrap() as u8)
+                        {
                             return Ok(items[index].next);
                         }
                     }

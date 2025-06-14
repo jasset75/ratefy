@@ -1,5 +1,4 @@
-use std::io;
-use crossterm::{event::{self, Event, KeyCode}};
+use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -8,12 +7,13 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
     Terminal,
 };
+use std::io;
 
 use ratefy_lib::calculate_percentage;
 
 /// Handles the percentage calculation screen
 pub fn calculate_percentage_view(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
@@ -26,15 +26,27 @@ pub fn calculate_percentage_view(
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(5)
-                .constraints([Constraint::Length(3), Constraint::Length(3), Constraint::Length(3)])
+                .constraints([
+                    Constraint::Length(3),
+                    Constraint::Length(3),
+                    Constraint::Length(3),
+                ])
                 .split(size);
 
             let widget = match step {
                 0 => Paragraph::new(Text::from(input_base.as_str()))
-                    .block(Block::default().title("Enter base value").borders(Borders::ALL))
+                    .block(
+                        Block::default()
+                            .title("Enter base value")
+                            .borders(Borders::ALL),
+                    )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
                 1 => Paragraph::new(Text::from(input_rate.as_str()))
-                    .block(Block::default().title("Enter percentage rate").borders(Borders::ALL))
+                    .block(
+                        Block::default()
+                            .title("Enter percentage rate")
+                            .borders(Borders::ALL),
+                    )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
                 2 => {
                     let msg = match result {
@@ -44,8 +56,9 @@ pub fn calculate_percentage_view(
                     Paragraph::new(Text::from(msg))
                         .block(Block::default().title("Output").borders(Borders::ALL))
                 }
-                _ => Paragraph::new("Unexpected state")
-                        .block(Block::default().borders(Borders::ALL)),
+                _ => {
+                    Paragraph::new("Unexpected state").block(Block::default().borders(Borders::ALL))
+                }
             };
 
             f.render_widget(widget, chunks[step]);
@@ -56,8 +69,12 @@ pub fn calculate_percentage_view(
                 match key.code {
                     KeyCode::Esc => break,
                     KeyCode::Backspace => match step {
-                        0 => { input_base.pop(); }
-                        1 => { input_rate.pop(); }
+                        0 => {
+                            input_base.pop();
+                        }
+                        1 => {
+                            input_rate.pop();
+                        }
                         _ => {}
                     },
                     KeyCode::Enter => match step {
