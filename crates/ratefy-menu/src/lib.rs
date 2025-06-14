@@ -51,8 +51,7 @@ where
 
             let list_items: Vec<ListItem> = items
                 .iter()
-                .enumerate()
-                .map(|(_, item)| {
+                .map(|item| {
                     let mut line = format!("{}. {}", item.key, item.label);
                     if let Some(hint) = &item.hint {
                         line.push_str(&format!("  ({})", hint));
