@@ -1,6 +1,6 @@
-[package]
-name = "ratefy"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
+[workspace]
+members = [
+    "crates/ratefy",
+    "crates/ratefy-lib",
+    "crates/ratefy-menu"
+]
