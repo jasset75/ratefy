@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "crates/ratefy",
+    "crates/ratefy-cli",
     "crates/ratefy-lib",
     "crates/ratefy-menu"
 ]
+resolver = "3"
