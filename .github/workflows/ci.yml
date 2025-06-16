@@ -21,17 +21,9 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install tools with mise
-        run: mise install
-
-      - name: Fallback install of Lefthook if not available
         run: |
-          if ! command -v lefthook &> /dev/null; then
-            echo "Lefthook not found, installing latest release from GitHub..."
-            LATEST=$(curl -s https://api.github.com/repos/evilmartians/lefthook/releases/latest | grep browser_download_url | grep "$(uname)" | grep "$(uname -m)" | grep -v .sig | cut -d '"' -f 4)
-            curl -L "$LATEST" | tar xz
-            chmod +x lefthook
-            sudo mv lefthook /usr/local/bin/
-          fi
+          export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+          mise install
 
-      - name: Run pre-commit hooks
+      - name: Run pre-commit hooks (Lefthook)
         run: lefthook run pre-commit --all-files
