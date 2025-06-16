@@ -42,9 +42,9 @@ impl TryFrom<&str> for CurrencyAlpha3 {
 /// A monetary amount with associated metadata.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Money {
-    amount: Decimal,
-    currency: CurrencyAlpha3,
-    fx_rate: Option<Decimal>,
+    pub(crate) amount: Decimal,
+    pub(crate) currency: CurrencyAlpha3,
+    rate: Option<Decimal>,
     source: Option<String>,
     tags: Vec<String>,
     timestamp: Option<NaiveDate>,
@@ -56,7 +56,7 @@ impl Money {
         Self {
             amount,
             currency,
-            fx_rate: None,
+            rate: None,
             source: None,
             tags: Vec::new(),
             timestamp: None,
@@ -75,11 +75,12 @@ impl Money {
 
     /// Apply a percentage increase or decrease to the amount.
     /// For example, 200 + 15% → 230.00
-    pub fn apply_percentage(&self, rate: Decimal) -> Self {
+    pub fn apply_rate(&self, rate: Decimal) -> Self {
         let factor = Decimal::ONE + rate / Decimal::from(100);
         let new_amount = self.amount * factor;
         Self {
             amount: new_amount,
+            rate: Some(factor),
             ..self.clone()
         }
     }

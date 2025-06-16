@@ -7,7 +7,7 @@ use ratatui::{
     text::Text,
     widgets::{Block, Borders, Paragraph},
 };
-use ratefy_lib::apply_percentage_str;
+use ratefy_lib::{G10_CURRENCIES, apply_percentage_str};
 use rust_decimal::Decimal;
 use std::io;
 
@@ -17,7 +17,7 @@ pub fn apply_percentage_view(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
-    let mut input_currency = String::new();
+    let mut input_currency = "EUR".to_string();
     let mut step = 0;
     let mut result: Option<(Decimal, String)> = None;
 
@@ -31,6 +31,7 @@ pub fn apply_percentage_view(
                     Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Length(3),
+                    Constraint::Length(1),
                     Constraint::Length(3),
                 ])
                 .split(size);
@@ -73,6 +74,13 @@ pub fn apply_percentage_view(
             };
 
             f.render_widget(widget, chunks[step]);
+
+            if step == 2 {
+                let currencies_str = G10_CURRENCIES.join(", ");
+                let helper = Paragraph::new(Text::from(currencies_str))
+                    .block(Block::default().borders(Borders::NONE));
+                f.render_widget(helper, chunks[3]);
+            }
         })?;
 
         if event::poll(std::time::Duration::from_millis(250))? {
