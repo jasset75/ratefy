@@ -9,10 +9,10 @@ use ratatui::{
 };
 use std::io;
 
-use ratefy_lib::calculate_percentage;
+use ratefy_lib::apply_percentage;
 
 /// Handles the percentage calculation screen
-pub fn calculate_percentage_view(
+pub fn apply_percentage_view(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
@@ -83,7 +83,7 @@ pub fn calculate_percentage_view(
                             let base = input_base.trim().parse::<f64>();
                             let rate = input_rate.trim().parse::<f64>();
                             result = match (base, rate) {
-                                (Ok(b), Ok(r)) => Some(calculate_percentage(b, r)),
+                                (Ok(b), Ok(r)) => Some(apply_percentage(b, r)),
                                 _ => None,
                             };
                             step = 2;

@@ -5,7 +5,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 
-use crate::views::calculate_percentage::calculate_percentage_view;
+use crate::views::apply_percentage::apply_percentage_view;
 use ratefy_menu::{run_menu, MenuItem};
 
 mod views;
@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 current_screen = run_menu(&mut terminal, "Ratefy Menu", &items)?;
             }
             Screen::CalculatePercentage => {
-                calculate_percentage_view(&mut terminal)?;
+                apply_percentage_view(&mut terminal)?;
                 current_screen = Screen::MainMenu;
             }
             Screen::Exit => break,
