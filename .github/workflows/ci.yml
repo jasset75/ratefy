@@ -14,16 +14,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install mise
+      - name: Install mise and update PATH
         run: |
           curl https://mise.jdx.dev/install.sh | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Add cargo to PATH
-        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install tools with mise
-        run: mise install
+          export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          mise install
 
       - name: Run pre-commit hooks
         run: lefthook run pre-commit --all-files
