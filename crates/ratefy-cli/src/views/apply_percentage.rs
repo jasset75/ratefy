@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::Text,
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
 use ratefy_lib::{G10_CURRENCIES, apply_percentage_str};
 use rust_decimal::Decimal;
@@ -17,7 +17,7 @@ pub fn apply_percentage_view(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
-    let mut input_currency = "EUR".to_string();
+    let mut selected_currency_idx = 0;
     let mut step = 0;
     let mut result: Option<(Decimal, String)> = None;
 
@@ -51,13 +51,27 @@ pub fn apply_percentage_view(
                             .borders(Borders::ALL),
                     )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
-                2 => Paragraph::new(Text::from(input_currency.as_str()))
-                    .block(
-                        Block::default()
-                            .title("Enter currency code")
-                            .borders(Borders::ALL),
-                    )
-                    .style(Style::default().add_modifier(Modifier::BOLD)),
+                2 => {
+                    let items: Vec<ListItem> = G10_CURRENCIES
+                        .iter()
+                        .map(|c| ListItem::new(c.to_string()))
+                        .collect();
+
+                    let mut state = ListState::default();
+                    state.select(Some(selected_currency_idx));
+
+                    let list = List::new(items)
+                        .block(
+                            Block::default()
+                                .title("Select currency")
+                                .borders(Borders::ALL),
+                        )
+                        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+                    f.render_stateful_widget(list, chunks[2], &mut state);
+
+                    Paragraph::new("")
+                }
                 3 => {
                     let msg = match &result {
                         Some((amount, currency)) => {
@@ -74,13 +88,6 @@ pub fn apply_percentage_view(
             };
 
             f.render_widget(widget, chunks[step]);
-
-            if step == 2 {
-                let currencies_str = G10_CURRENCIES.join(", ");
-                let helper = Paragraph::new(Text::from(currencies_str))
-                    .block(Block::default().borders(Borders::NONE));
-                f.render_widget(helper, chunks[3]);
-            }
         })?;
 
         if event::poll(std::time::Duration::from_millis(250))? {
@@ -94,17 +101,19 @@ pub fn apply_percentage_view(
                         1 => {
                             input_rate.pop();
                         }
-                        2 => {
-                            input_currency.pop();
-                        }
+                        2 => {}
                         _ => {}
                     },
                     KeyCode::Enter => match step {
                         0 => step = 1,
                         1 => step = 2,
                         2 => {
-                            result =
-                                apply_percentage_str(&input_base, &input_rate, &input_currency);
+                            let selected = G10_CURRENCIES
+                                .get(selected_currency_idx)
+                                .unwrap_or(&"EUR")
+                                .to_string();
+
+                            result = apply_percentage_str(&input_base, &input_rate, &selected);
                             step = 3;
                         }
                         3 => break,
@@ -119,10 +128,15 @@ pub fn apply_percentage_view(
                             _ => {}
                         }
                     }
-                    KeyCode::Char(c)
-                        if c.is_ascii_alphanumeric() && c.is_ascii_uppercase() && step == 2 =>
-                    {
-                        input_currency.push(c);
+                    KeyCode::Up if step == 2 => {
+                        if selected_currency_idx > 0 {
+                            selected_currency_idx = selected_currency_idx.saturating_sub(1)
+                        }
+                    }
+                    KeyCode::Down if step == 2 => {
+                        if selected_currency_idx + 1 < G10_CURRENCIES.len() {
+                            selected_currency_idx += 1;
+                        }
                     }
                     _ => {}
                 }
