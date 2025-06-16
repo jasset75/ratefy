@@ -7,7 +7,8 @@ use ratatui::{
     text::Text,
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
-use ratefy_lib::{G10_CURRENCIES, apply_percentage_str};
+use ratefy_lib::apply_percentage_str;
+use ratefy_lib::money::CurrencyGroup;
 use rust_decimal::Decimal;
 use std::io;
 
@@ -52,7 +53,8 @@ pub fn apply_percentage_view(
                     )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
                 2 => {
-                    let items: Vec<ListItem> = G10_CURRENCIES
+                    let items: Vec<ListItem> = CurrencyGroup::G10
+                        .list()
                         .iter()
                         .map(|c| ListItem::new(c.to_string()))
                         .collect();
@@ -108,10 +110,11 @@ pub fn apply_percentage_view(
                         0 => step = 1,
                         1 => step = 2,
                         2 => {
-                            let selected = G10_CURRENCIES
+                            let list = CurrencyGroup::G10.list();
+                            let selected = list
                                 .get(selected_currency_idx)
-                                .unwrap_or(&"EUR")
-                                .to_string();
+                                .cloned()
+                                .unwrap_or_else(|| "EUR".to_string());
 
                             result = apply_percentage_str(&input_base, &input_rate, &selected);
                             step = 3;
@@ -134,7 +137,7 @@ pub fn apply_percentage_view(
                         }
                     }
                     KeyCode::Down if step == 2 => {
-                        if selected_currency_idx + 1 < G10_CURRENCIES.len() {
+                        if selected_currency_idx + 1 < CurrencyGroup::G10.list().len() {
                             selected_currency_idx += 1;
                         }
                     }

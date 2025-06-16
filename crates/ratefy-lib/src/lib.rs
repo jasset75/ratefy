@@ -17,32 +17,3 @@ pub fn apply_percentage_str(
 
     Some((result_money.amount, result_money.currency.to_string()))
 }
-
-/// The standard G10 currency codes.
-pub const G10_CURRENCIES: [&str; 10] = [
-    "USD", // US Dollar
-    "EUR", // Euro
-    "JPY", // Japanese Yen
-    "GBP", // British Pound Sterling
-    "CHF", // Swiss Franc
-    "CAD", // Canadian Dollar
-    "AUD", // Australian Dollar
-    "NZD", // New Zealand Dollar
-    "SEK", // Swedish Krona
-    "NOK", // Norwegian Krone
-];
-
-/// The standard G3 currency codes.
-pub const G3_CURRENCIES: [&str; 3] = [
-    "USD", // US Dollar
-    "EUR", // Euro
-    "JPY", // Japanese Yen
-];
-
-pub fn is_g10_currency(code: &str) -> bool {
-    G10_CURRENCIES.contains(&code)
-}
-
-pub fn is_g3_currency(code: &str) -> bool {
-    G3_CURRENCIES.contains(&code)
-}

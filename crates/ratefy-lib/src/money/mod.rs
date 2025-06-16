@@ -1,4 +1,5 @@
-mod model;
+mod currency_group;
+pub mod model;
 
-pub use model::CurrencyAlpha3;
-pub use model::Money;
+pub use currency_group::CurrencyGroup;
+pub use model::{CurrencyAlpha3, Money};

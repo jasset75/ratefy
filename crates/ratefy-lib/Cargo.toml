@@ -6,7 +6,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 rust_decimal = { version = "1", features = ["serde"] }
-iso_currency = { version = "0.4", features = ["serde"] }
+iso_currency = { version = "0.5", features = ["iterator"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 rust_decimal_macros = "1"
+strum = "0.27"          # ← añade esto
+strum_macros = "0.27"   # ← por si lo necesitas más adelante
