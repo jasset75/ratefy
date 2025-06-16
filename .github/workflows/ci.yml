@@ -26,4 +26,5 @@ jobs:
           mise install
 
       - name: Run pre-commit hooks (Lefthook)
-        run: lefthook run pre-commit --all-files
+        run: |
+          exec $(mise which lefthook) run pre-commit --all-files
