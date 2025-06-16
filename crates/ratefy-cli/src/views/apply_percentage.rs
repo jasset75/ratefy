@@ -1,11 +1,11 @@
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::Text,
     widgets::{Block, Borders, Paragraph},
-    Terminal,
 };
 use std::io;
 
