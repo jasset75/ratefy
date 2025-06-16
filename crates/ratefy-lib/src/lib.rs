@@ -1,5 +1,5 @@
-/// Calculates the percentage of a base value given a rate.
-/// For example, 200 with 15% will return 30.0.
-pub fn calculate_percentage(base: f64, rate: f64) -> f64 {
-    base * rate / 100.0
+/// Apply a percentage to a base value given a rate.
+/// For example, 200 with 15% will return 230.0.
+pub fn apply_percentage(base: f64, rate: f64) -> f64 {
+    base * (1.0 + rate / 100.0)
 }
