@@ -7,9 +7,9 @@ use ratatui::{
     text::Text,
     widgets::{Block, Borders, Paragraph},
 };
+use ratefy_lib::apply_percentage_str;
+use rust_decimal::Decimal;
 use std::io;
-
-use ratefy_lib::money::{Currency, Money};
 
 /// Handles the percentage calculation screen
 pub fn apply_percentage_view(
@@ -17,8 +17,9 @@ pub fn apply_percentage_view(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
+    let mut input_currency = String::new();
     let mut step = 0;
-    let mut result: Option<Money> = None;
+    let mut result: Option<(Decimal, String)> = None;
 
     loop {
         terminal.draw(|f| {
@@ -27,6 +28,7 @@ pub fn apply_percentage_view(
                 .direction(Direction::Vertical)
                 .margin(5)
                 .constraints([
+                    Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Length(3),
@@ -48,10 +50,17 @@ pub fn apply_percentage_view(
                             .borders(Borders::ALL),
                     )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
-                2 => {
+                2 => Paragraph::new(Text::from(input_currency.as_str()))
+                    .block(
+                        Block::default()
+                            .title("Enter currency code")
+                            .borders(Borders::ALL),
+                    )
+                    .style(Style::default().add_modifier(Modifier::BOLD)),
+                3 => {
                     let msg = match &result {
-                        Some(money) => {
-                            format!("Result: {:.2} {}", money.amount(), money.currency())
+                        Some((amount, currency)) => {
+                            format!("Result: {:.2} {}", amount, currency)
                         }
                         None => "Invalid input.".to_string(),
                     };
@@ -77,28 +86,36 @@ pub fn apply_percentage_view(
                         1 => {
                             input_rate.pop();
                         }
+                        2 => {
+                            input_currency.pop();
+                        }
                         _ => {}
                     },
                     KeyCode::Enter => match step {
                         0 => step = 1,
-                        1 => {
-                            result = match Money::from_str(&input_base, Currency::EUR) {
-                                Some(money) => match input_rate.trim().parse() {
-                                    Ok(rate) => Some(money.apply_percentage(rate)),
-                                    Err(_) => None,
-                                },
-                                None => None,
-                            };
-                            step = 2;
+                        1 => step = 2,
+                        2 => {
+                            result =
+                                apply_percentage_str(&input_base, &input_rate, &input_currency);
+                            step = 3;
                         }
-                        2 => break,
+                        3 => break,
                         _ => {}
                     },
-                    KeyCode::Char(c) if c.is_ascii_digit() || c == '.' => match step {
-                        0 => input_base.push(c),
-                        1 => input_rate.push(c),
-                        _ => {}
-                    },
+                    KeyCode::Char(c)
+                        if (c.is_ascii_digit() || c == '.') && (step == 0 || step == 1) =>
+                    {
+                        match step {
+                            0 => input_base.push(c),
+                            1 => input_rate.push(c),
+                            _ => {}
+                        }
+                    }
+                    KeyCode::Char(c)
+                        if c.is_ascii_alphanumeric() && c.is_ascii_uppercase() && step == 2 =>
+                    {
+                        input_currency.push(c);
+                    }
                     _ => {}
                 }
             }

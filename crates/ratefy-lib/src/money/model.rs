@@ -1,12 +1,49 @@
 use chrono::NaiveDate;
 use iso_currency::Currency;
 use rust_decimal::Decimal;
+use std::fmt;
+use std::str::FromStr;
+
+/// ISO 4217 alpha-3 currency representation (e.g., "USD", "EUR").
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CurrencyAlpha3(Currency);
+
+impl CurrencyAlpha3 {
+    /// Returns the 3-letter ISO currency code (e.g., "USD").
+    pub fn code(&self) -> &str {
+        self.0.code()
+    }
+}
+
+impl FromStr for CurrencyAlpha3 {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Currency::from_str(&s.to_uppercase())
+            .map(CurrencyAlpha3)
+            .map_err(|_| ())
+    }
+}
+
+impl fmt::Display for CurrencyAlpha3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.code())
+    }
+}
+
+impl TryFrom<&str> for CurrencyAlpha3 {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        CurrencyAlpha3::from_str(value)
+    }
+}
 
 /// A monetary amount with associated metadata.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Money {
     amount: Decimal,
-    currency: Currency,
+    currency: CurrencyAlpha3,
     fx_rate: Option<Decimal>,
     source: Option<String>,
     tags: Vec<String>,
@@ -15,7 +52,7 @@ pub struct Money {
 
 impl Money {
     /// Create a new Money instance with required fields.
-    pub fn new(amount: Decimal, currency: Currency) -> Self {
+    pub fn new(amount: Decimal, currency: CurrencyAlpha3) -> Self {
         Self {
             amount,
             currency,
@@ -32,8 +69,8 @@ impl Money {
     }
 
     /// Returns the currency.
-    pub fn currency(&self) -> Currency {
-        self.currency
+    pub fn currency(&self) -> &CurrencyAlpha3 {
+        &self.currency
     }
 
     /// Apply a percentage increase or decrease to the amount.
@@ -48,7 +85,7 @@ impl Money {
     }
 
     /// Attempts to construct a Money instance from string inputs.
-    pub fn from_str(amount_str: &str, currency: Currency) -> Option<Self> {
+    pub fn from_str(amount_str: &str, currency: CurrencyAlpha3) -> Option<Self> {
         match amount_str.trim().parse::<Decimal>() {
             Ok(amount) => Some(Self::new(amount, currency)),
             Err(_) => None,
