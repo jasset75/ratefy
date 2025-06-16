@@ -19,8 +19,11 @@ jobs:
           curl https://mise.jdx.dev/install.sh | bash
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Add cargo to PATH
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
       - name: Install tools with mise
         run: mise install
 
-      - name: Run pre-commit hooks (Lefthook)
+      - name: Run pre-commit hooks
         run: lefthook run pre-commit --all-files
