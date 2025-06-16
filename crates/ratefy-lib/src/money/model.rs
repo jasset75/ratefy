@@ -80,7 +80,7 @@ impl Money {
         let new_amount = self.amount * factor;
         Self {
             amount: new_amount,
-            rate: Some(factor),
+            rate: Some(rate),
             ..self.clone()
         }
     }
@@ -90,6 +90,22 @@ impl Money {
         match amount_str.trim().parse::<Decimal>() {
             Ok(amount) => Some(Self::new(amount, currency)),
             Err(_) => None,
+        }
+    }
+
+    /// Attempts to revert the applied rate and recover the original Money.
+    pub fn revert_rate(&self) -> Option<Self> {
+        match self.rate {
+            Some(r) if !r.is_zero() => {
+                let factor = Decimal::ONE + r / Decimal::ONE_HUNDRED;
+                let original_amount = self.amount / factor;
+                Some(Self {
+                    amount: original_amount,
+                    rate: None,
+                    ..self.clone()
+                })
+            }
+            _ => None,
         }
     }
 }
