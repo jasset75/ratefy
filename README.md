@@ -27,6 +27,7 @@ To install `ratefy`, clone the repository and build it using Cargo:
 git clone https://github.com/yourusername/ratefy.git
 cd ratefy
 cargo build --release
+```
 
 ## Git Hooks (Lefthook)
 
