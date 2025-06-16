@@ -25,5 +25,6 @@ jobs:
           export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           mise install
 
-      - name: Run pre-commit hooks with mise exec
-        run: mise exec lefthook -- run pre-commit --all-files
+      - name: Run pre-commit hooks (resolved via mise)
+        run: |
+          exec "$(mise which lefthook)" run pre-commit --all-files
