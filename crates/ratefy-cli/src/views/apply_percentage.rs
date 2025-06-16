@@ -9,7 +9,7 @@ use ratatui::{
 };
 use std::io;
 
-use ratefy_lib::apply_percentage;
+use ratefy_lib::money::{Currency, Money};
 
 /// Handles the percentage calculation screen
 pub fn apply_percentage_view(
@@ -18,7 +18,7 @@ pub fn apply_percentage_view(
     let mut input_base = String::new();
     let mut input_rate = String::new();
     let mut step = 0;
-    let mut result: Option<f64> = None;
+    let mut result: Option<Money> = None;
 
     loop {
         terminal.draw(|f| {
@@ -49,8 +49,10 @@ pub fn apply_percentage_view(
                     )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
                 2 => {
-                    let msg = match result {
-                        Some(val) => format!("Result: {:.2}", val),
+                    let msg = match &result {
+                        Some(money) => {
+                            format!("Result: {:.2} {}", money.amount(), money.currency())
+                        }
                         None => "Invalid input.".to_string(),
                     };
                     Paragraph::new(Text::from(msg))
@@ -80,11 +82,12 @@ pub fn apply_percentage_view(
                     KeyCode::Enter => match step {
                         0 => step = 1,
                         1 => {
-                            let base = input_base.trim().parse::<f64>();
-                            let rate = input_rate.trim().parse::<f64>();
-                            result = match (base, rate) {
-                                (Ok(b), Ok(r)) => Some(apply_percentage(b, r)),
-                                _ => None,
+                            result = match Money::from_str(&input_base, Currency::EUR) {
+                                Some(money) => match input_rate.trim().parse() {
+                                    Ok(rate) => Some(money.apply_percentage(rate)),
+                                    Err(_) => None,
+                                },
+                                None => None,
                             };
                             step = 2;
                         }
