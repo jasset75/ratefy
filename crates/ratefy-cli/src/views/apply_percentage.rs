@@ -125,10 +125,29 @@ pub fn apply_percentage_view(
                         2 => {}
                         _ => {}
                     },
-                    KeyCode::Enter => match step {
-                        0 => step = 1,
-                        1 => step = 2,
-                        2 => {
+                    KeyCode::Tab => {
+                        step = (step + 1) % 4;
+                    }
+                    KeyCode::BackTab => {
+                        step = if step == 0 { 3 } else { step - 1 };
+                    }
+                    KeyCode::Up => {
+                        if step == 2 && selected_currency_idx > 0 {
+                            selected_currency_idx -= 1;
+                        } else if step != 0 {
+                            step -= 1;
+                        }
+                    }
+                    KeyCode::Down => {
+                        if step == 2 && selected_currency_idx + 1 < CurrencyGroup::G10.list().len()
+                        {
+                            selected_currency_idx += 1;
+                        } else {
+                            step = (step + 1) % 4;
+                        }
+                    }
+                    KeyCode::Enter => {
+                        if step == 2 {
                             let list = CurrencyGroup::G10.list();
                             let selected = list
                                 .get(selected_currency_idx)
@@ -136,11 +155,12 @@ pub fn apply_percentage_view(
                                 .unwrap_or_else(|| "EUR".to_string());
 
                             result = apply_percentage_str(&input_base, &input_rate, &selected);
-                            step = 3;
                         }
-                        3 => break,
-                        _ => {}
-                    },
+
+                        if step < 3 {
+                            step += 1;
+                        }
+                    }
                     KeyCode::Char(c)
                         if (c.is_ascii_digit() || c == '.') && (step == 0 || step == 1) =>
                     {
@@ -148,16 +168,6 @@ pub fn apply_percentage_view(
                             0 => input_base.push(c),
                             1 => input_rate.push(c),
                             _ => {}
-                        }
-                    }
-                    KeyCode::Up if step == 2 => {
-                        if selected_currency_idx > 0 {
-                            selected_currency_idx = selected_currency_idx.saturating_sub(1)
-                        }
-                    }
-                    KeyCode::Down if step == 2 => {
-                        if selected_currency_idx + 1 < CurrencyGroup::G10.list().len() {
-                            selected_currency_idx += 1;
                         }
                     }
                     _ => {}
