@@ -11,10 +11,13 @@ use ratefy_lib::apply_percentage_str;
 use ratefy_lib::money::CurrencyGroup;
 use rust_decimal::Decimal;
 use std::io;
+use crate::types::layout::{HorizontalAlign, VerticalAlign};
 
 /// Handles the percentage calculation screen
 pub fn apply_percentage_view(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    h_align: HorizontalAlign,
+    v_align: VerticalAlign,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
@@ -24,18 +27,48 @@ pub fn apply_percentage_view(
 
     loop {
         terminal.draw(|f| {
-            let size = f.size();
+            let outer = f.size();
+
+            let width = match h_align {
+                HorizontalAlign::Full => outer.width,
+                _ => 60,
+            };
+
+            let height = match v_align {
+                VerticalAlign::Full => outer.height,
+                _ => 20,
+            };
+
+            let x = match h_align {
+                HorizontalAlign::Left | HorizontalAlign::Full => outer.x,
+                HorizontalAlign::Center => outer.x + (outer.width.saturating_sub(width)) / 2,
+                HorizontalAlign::Right => outer.x + outer.width.saturating_sub(width),
+            };
+
+            let y = match v_align {
+                VerticalAlign::Top | VerticalAlign::Full => outer.y,
+                VerticalAlign::Middle => outer.y + (outer.height.saturating_sub(height)) / 2,
+                VerticalAlign::Bottom => outer.y + outer.height.saturating_sub(height),
+            };
+
+            let viewport = ratatui::layout::Rect {
+                x,
+                y,
+                width,
+                height,
+            };
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .margin(5)
+                .margin(1)
                 .constraints([
                     Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Length(3),
                     Constraint::Length(1),
                     Constraint::Length(3),
+                    Constraint::Length(2),
                 ])
-                .split(size);
+                .split(viewport);
 
             // Input base
             let base_style = if step == 0 {
@@ -109,6 +142,12 @@ pub fn apply_percentage_view(
                     Style::default()
                 });
             f.render_widget(result_paragraph, chunks[4]);
+
+            let legend_text =
+                "TAB: next | Shift+TAB: prev | ↑↓: navigate | Enter: confirm | ESC: exit";
+            let legend_paragraph = Paragraph::new(Text::from(legend_text))
+                .block(Block::default().title("Controls").borders(Borders::ALL));
+            f.render_widget(legend_paragraph, chunks[5]);
         })?;
 
         if event::poll(std::time::Duration::from_millis(250))? {
@@ -127,9 +166,25 @@ pub fn apply_percentage_view(
                     },
                     KeyCode::Tab => {
                         step = (step + 1) % 4;
+                        if step == 3 && result.is_none() {
+                            let list = CurrencyGroup::G10.list();
+                            let selected = list
+                                .get(selected_currency_idx)
+                                .cloned()
+                                .unwrap_or_else(|| "EUR".to_string());
+                            result = apply_percentage_str(&input_base, &input_rate, &selected);
+                        }
                     }
                     KeyCode::BackTab => {
                         step = if step == 0 { 3 } else { step - 1 };
+                        if step == 3 && result.is_none() {
+                            let list = CurrencyGroup::G10.list();
+                            let selected = list
+                                .get(selected_currency_idx)
+                                .cloned()
+                                .unwrap_or_else(|| "EUR".to_string());
+                            result = apply_percentage_str(&input_base, &input_rate, &selected);
+                        }
                     }
                     KeyCode::Up => {
                         if step == 2 && selected_currency_idx > 0 {
@@ -144,6 +199,14 @@ pub fn apply_percentage_view(
                             selected_currency_idx += 1;
                         } else {
                             step = (step + 1) % 4;
+                            if step == 3 && result.is_none() {
+                                let list = CurrencyGroup::G10.list();
+                                let selected = list
+                                    .get(selected_currency_idx)
+                                    .cloned()
+                                    .unwrap_or_else(|| "EUR".to_string());
+                                result = apply_percentage_str(&input_base, &input_rate, &selected);
+                            }
                         }
                     }
                     KeyCode::Enter => {
@@ -159,6 +222,14 @@ pub fn apply_percentage_view(
 
                         if step < 3 {
                             step += 1;
+                        }
+                        if step == 3 && result.is_none() {
+                            let list = CurrencyGroup::G10.list();
+                            let selected = list
+                                .get(selected_currency_idx)
+                                .cloned()
+                                .unwrap_or_else(|| "EUR".to_string());
+                            result = apply_percentage_str(&input_base, &input_rate, &selected);
                         }
                     }
                     KeyCode::Char(c)
