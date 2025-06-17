@@ -24,9 +24,10 @@ If you don't have Rust installed, you can install it along with other tools usin
 To install `ratefy`, clone the repository and build it using Cargo:
 
 ```bash
-git clone https://github.com/yourusername/ratefy.git
+git clone https://github.com/jasset75/ratefy.git
 cd ratefy
 cargo build --release
+```
 
 ## Git Hooks (Lefthook)
 

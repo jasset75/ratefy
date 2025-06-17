@@ -5,11 +5,12 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::Text,
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
+use ratefy_lib::apply_percentage_str;
+use ratefy_lib::money::CurrencyGroup;
+use rust_decimal::Decimal;
 use std::io;
-
-use ratefy_lib::apply_percentage;
 
 /// Handles the percentage calculation screen
 pub fn apply_percentage_view(
@@ -17,8 +18,9 @@ pub fn apply_percentage_view(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
+    let mut selected_currency_idx = 0;
     let mut step = 0;
-    let mut result: Option<f64> = None;
+    let mut result: Option<(Decimal, String)> = None;
 
     loop {
         terminal.draw(|f| {
@@ -29,6 +31,8 @@ pub fn apply_percentage_view(
                 .constraints([
                     Constraint::Length(3),
                     Constraint::Length(3),
+                    Constraint::Length(3),
+                    Constraint::Length(1),
                     Constraint::Length(3),
                 ])
                 .split(size);
@@ -49,8 +53,32 @@ pub fn apply_percentage_view(
                     )
                     .style(Style::default().add_modifier(Modifier::BOLD)),
                 2 => {
-                    let msg = match result {
-                        Some(val) => format!("Result: {:.2}", val),
+                    let items: Vec<ListItem> = CurrencyGroup::G10
+                        .list()
+                        .iter()
+                        .map(|c| ListItem::new(c.to_string()))
+                        .collect();
+
+                    let mut state = ListState::default();
+                    state.select(Some(selected_currency_idx));
+
+                    let list = List::new(items)
+                        .block(
+                            Block::default()
+                                .title("Select currency")
+                                .borders(Borders::ALL),
+                        )
+                        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+
+                    f.render_stateful_widget(list, chunks[2], &mut state);
+
+                    Paragraph::new("")
+                }
+                3 => {
+                    let msg = match &result {
+                        Some((amount, currency)) => {
+                            format!("Result: {:.2} {}", amount, currency)
+                        }
                         None => "Invalid input.".to_string(),
                     };
                     Paragraph::new(Text::from(msg))
@@ -75,27 +103,44 @@ pub fn apply_percentage_view(
                         1 => {
                             input_rate.pop();
                         }
+                        2 => {}
                         _ => {}
                     },
                     KeyCode::Enter => match step {
                         0 => step = 1,
-                        1 => {
-                            let base = input_base.trim().parse::<f64>();
-                            let rate = input_rate.trim().parse::<f64>();
-                            result = match (base, rate) {
-                                (Ok(b), Ok(r)) => Some(apply_percentage(b, r)),
-                                _ => None,
-                            };
-                            step = 2;
+                        1 => step = 2,
+                        2 => {
+                            let list = CurrencyGroup::G10.list();
+                            let selected = list
+                                .get(selected_currency_idx)
+                                .cloned()
+                                .unwrap_or_else(|| "EUR".to_string());
+
+                            result = apply_percentage_str(&input_base, &input_rate, &selected);
+                            step = 3;
                         }
-                        2 => break,
+                        3 => break,
                         _ => {}
                     },
-                    KeyCode::Char(c) if c.is_ascii_digit() || c == '.' => match step {
-                        0 => input_base.push(c),
-                        1 => input_rate.push(c),
-                        _ => {}
-                    },
+                    KeyCode::Char(c)
+                        if (c.is_ascii_digit() || c == '.') && (step == 0 || step == 1) =>
+                    {
+                        match step {
+                            0 => input_base.push(c),
+                            1 => input_rate.push(c),
+                            _ => {}
+                        }
+                    }
+                    KeyCode::Up if step == 2 => {
+                        if selected_currency_idx > 0 {
+                            selected_currency_idx = selected_currency_idx.saturating_sub(1)
+                        }
+                    }
+                    KeyCode::Down if step == 2 => {
+                        if selected_currency_idx + 1 < CurrencyGroup::G10.list().len() {
+                            selected_currency_idx += 1;
+                        }
+                    }
                     _ => {}
                 }
             }
