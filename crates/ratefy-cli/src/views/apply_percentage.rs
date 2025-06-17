@@ -7,7 +7,7 @@ use ratatui::{
     text::Text,
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
-use ratefy_lib::apply_rate_str;
+use ratefy_lib::apply_percentage_str;
 use ratefy_lib::money::CurrencyGroup;
 use rust_decimal::Decimal;
 use std::io;
@@ -116,7 +116,7 @@ pub fn apply_percentage_view(
                                 .cloned()
                                 .unwrap_or_else(|| "EUR".to_string());
 
-                            result = apply_rate_str(&input_base, &input_rate, &selected);
+                            result = apply_percentage_str(&input_base, &input_rate, &selected);
                             step = 3;
                         }
                         3 => break,

@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 pub use money::{CurrencyAlpha3, Money};
 
-pub fn apply_rate_str(
+pub fn apply_percentage_str(
     base_str: &str,
     rate_str: &str,
     currency_str: &str,
