@@ -1,10 +1,25 @@
+//! # model.rs – CurrencyAlpha3 and Money
+//!
+//! This module provides core types used across the Ratefy system:
+//!
+//! - [`CurrencyAlpha3`] wraps ISO 4217 currencies with parsing, display, and fallible conversion support.
+//! - [`Money`] represents an amount tied to a specific currency and supports metadata,
+//!   percentage rate application, and reversal.
+//!
+//! Usage examples for each type are available in:
+//! - [`docs/types/currency_alpha3.md`](../../docs/types/currency_alpha3.md)
+//! - [`docs/types/money.md`](../../docs/types/money.md)
+
 use chrono::NaiveDate;
 use iso_currency::Currency;
 use rust_decimal::Decimal;
 use std::fmt;
+// Trait used for parsing CurrencyAlpha3 from a &str.
 use std::str::FromStr;
 
-/// ISO 4217 alpha-3 currency representation (e.g., "USD", "EUR").
+#[doc = include_str!("../../docs/types/currency_alpha3.md")]
+/// Wrapper around iso_currency::Currency to ensure consistent formatting and parsing.
+/// Used throughout the system as the standard currency representation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CurrencyAlpha3(Currency);
 
@@ -15,6 +30,7 @@ impl CurrencyAlpha3 {
     }
 }
 
+/// Enables parsing a `CurrencyAlpha3` from a string like "usd" or "EUR".
 impl FromStr for CurrencyAlpha3 {
     type Err = ();
 
@@ -25,12 +41,15 @@ impl FromStr for CurrencyAlpha3 {
     }
 }
 
+/// Formats the currency using its ISO 4217 alpha-3 code (e.g., "USD").
 impl fmt::Display for CurrencyAlpha3 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.code())
     }
 }
 
+/// Provides fallible conversion from `&str` into `CurrencyAlpha3`.
+/// Useful for ergonomic API conversions.
 impl TryFrom<&str> for CurrencyAlpha3 {
     type Error = ();
 
@@ -39,7 +58,11 @@ impl TryFrom<&str> for CurrencyAlpha3 {
     }
 }
 
-/// A monetary amount with associated metadata.
+#[doc = include_str!("../../docs/types/money.md")]
+/// A monetary amount associated with a specific ISO currency.
+///
+/// Includes optional metadata such as the rate used to derive it,
+/// data source, descriptive tags, and a timestamp for historical tracking.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Money {
     pub(crate) amount: Decimal,
@@ -73,8 +96,10 @@ impl Money {
         &self.currency
     }
 
-    /// Apply a percentage increase or decrease to the amount.
-    /// For example, 200 + 15% → 230.00
+    /// Applies a percentage rate to the amount (positive or negative).
+    ///
+    /// For example, a rate of 15 applied to 200 becomes 230.00.
+    /// The rate is stored for potential reversal using `revert_rate()`.
     pub fn apply_rate(&self, rate: Decimal) -> Self {
         let factor = Decimal::ONE + rate / Decimal::from(100);
         let new_amount = self.amount * factor;
@@ -85,7 +110,9 @@ impl Money {
         }
     }
 
-    /// Attempts to construct a Money instance from string inputs.
+    /// Constructs a `Money` instance from a string representation of the amount and a currency.
+    ///
+    /// Returns `None` if the string cannot be parsed as a valid Decimal.
     pub fn from_str(amount_str: &str, currency: CurrencyAlpha3) -> Option<Self> {
         match amount_str.trim().parse::<Decimal>() {
             Ok(amount) => Some(Self::new(amount, currency)),
@@ -93,7 +120,9 @@ impl Money {
         }
     }
 
-    /// Attempts to revert the applied rate and recover the original Money.
+    /// Attempts to revert a previously applied percentage rate to recover the original amount.
+    ///
+    /// Returns `None` if no rate is present or if the rate is zero.
     pub fn revert_rate(&self) -> Option<Self> {
         match self.rate {
             Some(r) if !r.is_zero() => {
