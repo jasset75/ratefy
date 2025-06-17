@@ -1,3 +1,4 @@
+use crate::types::layout::{HorizontalAlign, VerticalAlign};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     Terminal,
@@ -11,7 +12,6 @@ use ratefy_lib::apply_percentage_str;
 use ratefy_lib::money::CurrencyGroup;
 use rust_decimal::Decimal;
 use std::io;
-use crate::types::layout::{HorizontalAlign, VerticalAlign};
 
 /// Handles the percentage calculation screen
 pub fn apply_percentage_view(
