@@ -37,59 +37,78 @@ pub fn apply_percentage_view(
                 ])
                 .split(size);
 
-            let widget = match step {
-                0 => Paragraph::new(Text::from(input_base.as_str()))
-                    .block(
-                        Block::default()
-                            .title("Enter base value")
-                            .borders(Borders::ALL),
-                    )
-                    .style(Style::default().add_modifier(Modifier::BOLD)),
-                1 => Paragraph::new(Text::from(input_rate.as_str()))
-                    .block(
-                        Block::default()
-                            .title("Enter percentage rate")
-                            .borders(Borders::ALL),
-                    )
-                    .style(Style::default().add_modifier(Modifier::BOLD)),
-                2 => {
-                    let items: Vec<ListItem> = CurrencyGroup::G10
-                        .list()
-                        .iter()
-                        .map(|c| ListItem::new(c.to_string()))
-                        .collect();
-
-                    let mut state = ListState::default();
-                    state.select(Some(selected_currency_idx));
-
-                    let list = List::new(items)
-                        .block(
-                            Block::default()
-                                .title("Select currency")
-                                .borders(Borders::ALL),
-                        )
-                        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-
-                    f.render_stateful_widget(list, chunks[2], &mut state);
-
-                    Paragraph::new("")
-                }
-                3 => {
-                    let msg = match &result {
-                        Some((amount, currency)) => {
-                            format!("Result: {:.2} {}", amount, currency)
-                        }
-                        None => "Invalid input.".to_string(),
-                    };
-                    Paragraph::new(Text::from(msg))
-                        .block(Block::default().title("Output").borders(Borders::ALL))
-                }
-                _ => {
-                    Paragraph::new("Unexpected state").block(Block::default().borders(Borders::ALL))
-                }
+            // Input base
+            let base_style = if step == 0 {
+                Style::default()
+                    .fg(ratatui::style::Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
             };
+            let base_input = Paragraph::new(Text::from(input_base.as_str()))
+                .block(
+                    Block::default()
+                        .title("Enter base value")
+                        .borders(Borders::ALL),
+                )
+                .style(base_style);
+            f.render_widget(base_input, chunks[0]);
 
-            f.render_widget(widget, chunks[step]);
+            // Input rate
+            let rate_style = if step == 1 {
+                Style::default()
+                    .fg(ratatui::style::Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            let rate_input = Paragraph::new(Text::from(input_rate.as_str()))
+                .block(
+                    Block::default()
+                        .title("Enter percentage rate")
+                        .borders(Borders::ALL),
+                )
+                .style(rate_style);
+            f.render_widget(rate_input, chunks[1]);
+
+            // Currency list
+            let items: Vec<ListItem> = CurrencyGroup::G10
+                .list()
+                .iter()
+                .map(|c| ListItem::new(c.to_string()))
+                .collect();
+            let mut state = ListState::default();
+            state.select(Some(selected_currency_idx));
+            let currency_list = List::new(items)
+                .block(
+                    Block::default()
+                        .title("Select currency")
+                        .borders(Borders::ALL),
+                )
+                .highlight_style(if step == 2 {
+                    Style::default().add_modifier(Modifier::REVERSED)
+                } else {
+                    Style::default()
+                });
+            f.render_stateful_widget(currency_list, chunks[2], &mut state);
+
+            // chunks[3] left empty for spacing
+            let blank = Paragraph::new("");
+            f.render_widget(blank, chunks[3]);
+
+            // Result box
+            let msg = match &result {
+                Some((amount, currency)) => format!("Result: {:.2} {}", amount, currency),
+                None => "Result will appear here.".to_string(),
+            };
+            let result_paragraph = Paragraph::new(Text::from(msg))
+                .block(Block::default().title("Output").borders(Borders::ALL))
+                .style(if step == 3 {
+                    Style::default().fg(ratatui::style::Color::Yellow)
+                } else {
+                    Style::default()
+                });
+            f.render_widget(result_paragraph, chunks[4]);
         })?;
 
         if event::poll(std::time::Duration::from_millis(250))? {
