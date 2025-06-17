@@ -1,3 +1,4 @@
+use crate::types::layout::{HorizontalAlign, VerticalAlign};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     Terminal,
@@ -11,13 +12,13 @@ use ratefy_lib::apply_percentage_str;
 use ratefy_lib::money::CurrencyGroup;
 use rust_decimal::Decimal;
 use std::io;
-use crate::types::layout::{HorizontalAlign, VerticalAlign};
 
 /// Handles the percentage calculation screen
 pub fn apply_percentage_view(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     h_align: HorizontalAlign,
     v_align: VerticalAlign,
+    show_border: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
@@ -31,7 +32,7 @@ pub fn apply_percentage_view(
 
             let width = match h_align {
                 HorizontalAlign::Full => outer.width,
-                _ => 60,
+                _ => 80,
             };
 
             let height = match v_align {
@@ -57,6 +58,13 @@ pub fn apply_percentage_view(
                 width,
                 height,
             };
+            if show_border {
+                let frame_block = Block::default()
+                    .borders(Borders::ALL)
+                    .title("Apply Percentage")
+                    .style(Style::default().bg(ratatui::style::Color::Black));
+                f.render_widget(frame_block, viewport);
+            }
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
@@ -66,7 +74,7 @@ pub fn apply_percentage_view(
                     Constraint::Length(3),
                     Constraint::Length(1),
                     Constraint::Length(3),
-                    Constraint::Length(2),
+                    Constraint::Length(4),
                 ])
                 .split(viewport);
 
@@ -146,7 +154,7 @@ pub fn apply_percentage_view(
             let legend_text =
                 "TAB: next | Shift+TAB: prev | ↑↓: navigate | Enter: confirm | ESC: exit";
             let legend_paragraph = Paragraph::new(Text::from(legend_text))
-                .block(Block::default().title("Controls").borders(Borders::ALL));
+                .style(Style::default().fg(ratatui::style::Color::DarkGray));
             f.render_widget(legend_paragraph, chunks[5]);
         })?;
 
