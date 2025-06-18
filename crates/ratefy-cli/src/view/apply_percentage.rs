@@ -18,15 +18,9 @@ use std::time::{Duration, Instant};
 fn calculate_result(
     base: &str,
     rate: &str,
-    currency_idx: usize,
+    currency_code: &str,
 ) -> Result<(Decimal, String), String> {
-    let list = CurrencyGroup::G10.list();
-    let selected = list
-        .get(currency_idx)
-        .cloned()
-        .unwrap_or_else(|| "EUR".to_string());
-
-    apply_percentage_str(base, rate, &selected)
+    apply_percentage_str(base, rate, currency_code)
         .ok_or_else(|| "Could not calculate percentage".to_string())
 }
 
@@ -39,13 +33,14 @@ pub fn apply_percentage_view(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut input_base = String::new();
     let mut input_rate = String::new();
-    let mut selected_currency_idx = 0;
+    let mut selected_currency = "EUR".to_string();
     let mut step = 0;
     let mut result: Option<Result<(Decimal, String), String>> = None;
 
     let mut show_currency_popup = false;
     let mut currency_group_index = 0; // 0 = G3, 1 = G10, 2 = All
     let mut currency_list_state = ListState::default();
+    let mut search_query = String::new();
 
     let mut cursor_visible = true;
     let mut last_cursor_toggle = Instant::now();
@@ -151,28 +146,20 @@ pub fn apply_percentage_view(
                 .style(rate_style);
             f.render_widget(rate_input, chunks[1]);
 
-            // Currency list
-            let items: Vec<ListItem> = CurrencyGroup::G10
-                .list()
-                .iter()
-                .map(|c| ListItem::new(c.to_string()))
-                .collect();
-            let mut state = ListState::default();
-            state.select(Some(selected_currency_idx));
-            let currency_list = List::new(items)
-                .block(
-                    Block::default()
-                        .title("Select currency")
-                        .borders(Borders::ALL),
-                )
-                .highlight_style(if step == 2 {
-                    Style::default()
-                        .fg(ratatui::style::Color::Yellow)
-                        .add_modifier(Modifier::REVERSED)
-                } else {
-                    Style::default().fg(ratatui::style::Color::White)
-                });
-            f.render_stateful_widget(currency_list, chunks[2], &mut state);
+            // Currency selection display (replaces List with stylized Paragraph)
+            let selected_style = if step == 2 {
+                Style::default()
+                    .fg(ratatui::style::Color::Black)
+                    .bg(ratatui::style::Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(ratatui::style::Color::White)
+            };
+            let arrow_icon = if show_currency_popup { "🔼" } else { "🔽" };
+            let selected_label = format!("Currency: {} {}", selected_currency, arrow_icon);
+            let currency_block = Paragraph::new(Text::from(selected_label).style(selected_style))
+                .block(Block::default().borders(Borders::ALL));
+            f.render_widget(currency_block, chunks[2]);
 
             // Spacing
             let blank = Paragraph::new("");
@@ -199,21 +186,39 @@ pub fn apply_percentage_view(
             if show_currency_popup {
                 use ratatui::widgets::Clear;
                 let groups = [&CurrencyGroup::G3, &CurrencyGroup::G10, &CurrencyGroup::All];
-                let currencies = groups[currency_group_index].list();
+                // let currencies = groups[currency_group_index].list();
+                let full_list = groups[currency_group_index].list();
+                let filtered_list: Vec<String> = if search_query.is_empty() {
+                    full_list.clone()
+                } else {
+                    full_list
+                        .iter()
+                        .filter(|c| c.to_lowercase().contains(&search_query.to_lowercase()))
+                        .cloned()
+                        .collect()
+                };
                 let popup_area = ratatui::layout::Rect {
                     x: viewport.x + 5,
                     y: viewport.y + 5,
                     width: 30,
                     height: 10,
                 };
-                let items: Vec<ListItem> = currencies
-                    .iter()
-                    .map(|c| ListItem::new(c.to_string()))
-                    .collect();
+                // let items: Vec<ListItem> = currencies
+                //     .iter()
+                //     .map(|c| ListItem::new(c.to_string()))
+                //     .collect();
+                let items: Vec<ListItem> = if filtered_list.is_empty() {
+                    vec![ListItem::new("No results")]
+                } else {
+                    filtered_list
+                        .iter()
+                        .map(|c| ListItem::new(c.to_string()))
+                        .collect()
+                };
                 f.render_widget(Clear, popup_area);
                 let group_titles = ["G3 ▶", "◀ G10 ▶", "◀ ALL"];
                 let selected = currency_list_state.selected().unwrap_or(0);
-                let list_len = currencies.len();
+                let list_len = filtered_list.len();
                 let mut scroll_hint = String::new();
                 if selected > 0 {
                     scroll_hint.push('↑');
@@ -221,7 +226,11 @@ pub fn apply_percentage_view(
                 if selected + 1 < list_len {
                     scroll_hint.push('↓');
                 }
-                let title = format!("{} {}", group_titles[currency_group_index], scroll_hint);
+                // let title = format!("{} {}", group_titles[currency_group_index], scroll_hint);
+                let title = format!(
+                    "{} {} [{}]",
+                    group_titles[currency_group_index], scroll_hint, search_query
+                );
                 let list = List::new(items)
                     .block(Block::default().title(title).borders(Borders::ALL))
                     .highlight_style(
@@ -236,26 +245,40 @@ pub fn apply_percentage_view(
         if event::poll(std::time::Duration::from_millis(250))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Esc => break,
-                    KeyCode::Backspace => match step {
-                        0 => {
-                            input_base.pop();
-                            result = Some(calculate_result(
-                                &input_base,
-                                &input_rate,
-                                selected_currency_idx,
-                            ));
+                    KeyCode::Esc => {
+                        if show_currency_popup {
+                            show_currency_popup = false;
+                            search_query.clear();
+                        } else {
+                            break;
                         }
-                        1 => {
-                            input_rate.pop();
-                            result = Some(calculate_result(
-                                &input_base,
-                                &input_rate,
-                                selected_currency_idx,
-                            ));
+                    }
+                    KeyCode::Backspace => {
+                        if show_currency_popup {
+                            search_query.pop();
+                            currency_list_state.select(Some(0));
+                        } else {
+                            match step {
+                                0 => {
+                                    input_base.pop();
+                                    let _ = calculate_result(
+                                        &input_base,
+                                        &input_rate,
+                                        &selected_currency,
+                                    );
+                                }
+                                1 => {
+                                    input_rate.pop();
+                                    let _ = calculate_result(
+                                        &input_base,
+                                        &input_rate,
+                                        &selected_currency,
+                                    );
+                                }
+                                _ => {}
+                            }
                         }
-                        _ => {}
-                    },
+                    }
                     KeyCode::Tab => {
                         step = (step + 1) % 3;
                     }
@@ -277,9 +300,69 @@ pub fn apply_percentage_view(
                         if show_currency_popup {
                             let selected = currency_list_state.selected().unwrap_or(0);
                             let list_len = match currency_group_index {
-                                0 => CurrencyGroup::G3.list().len(),
-                                1 => CurrencyGroup::G10.list().len(),
-                                _ => CurrencyGroup::All.list().len(),
+                                0 => {
+                                    let groups = [
+                                        &CurrencyGroup::G3,
+                                        &CurrencyGroup::G10,
+                                        &CurrencyGroup::All,
+                                    ];
+                                    let full_list = groups[currency_group_index].list();
+                                    let filtered_list: Vec<String> = if search_query.is_empty() {
+                                        full_list.clone()
+                                    } else {
+                                        full_list
+                                            .iter()
+                                            .filter(|c| {
+                                                c.to_lowercase()
+                                                    .contains(&search_query.to_lowercase())
+                                            })
+                                            .cloned()
+                                            .collect()
+                                    };
+                                    filtered_list.len()
+                                }
+                                1 => {
+                                    let groups = [
+                                        &CurrencyGroup::G3,
+                                        &CurrencyGroup::G10,
+                                        &CurrencyGroup::All,
+                                    ];
+                                    let full_list = groups[currency_group_index].list();
+                                    let filtered_list: Vec<String> = if search_query.is_empty() {
+                                        full_list.clone()
+                                    } else {
+                                        full_list
+                                            .iter()
+                                            .filter(|c| {
+                                                c.to_lowercase()
+                                                    .contains(&search_query.to_lowercase())
+                                            })
+                                            .cloned()
+                                            .collect()
+                                    };
+                                    filtered_list.len()
+                                }
+                                _ => {
+                                    let groups = [
+                                        &CurrencyGroup::G3,
+                                        &CurrencyGroup::G10,
+                                        &CurrencyGroup::All,
+                                    ];
+                                    let full_list = groups[currency_group_index].list();
+                                    let filtered_list: Vec<String> = if search_query.is_empty() {
+                                        full_list.clone()
+                                    } else {
+                                        full_list
+                                            .iter()
+                                            .filter(|c| {
+                                                c.to_lowercase()
+                                                    .contains(&search_query.to_lowercase())
+                                            })
+                                            .cloned()
+                                            .collect()
+                                    };
+                                    filtered_list.len()
+                                }
                             };
                             if selected + 1 < list_len {
                                 currency_list_state.select(Some(selected + 1));
@@ -292,12 +375,14 @@ pub fn apply_percentage_view(
                         if show_currency_popup {
                             currency_group_index = (currency_group_index + 1) % 3;
                             currency_list_state.select(Some(0));
+                            search_query.clear();
                         }
                     }
                     KeyCode::Left => {
                         if show_currency_popup && currency_group_index > 0 {
                             currency_group_index -= 1;
                             currency_list_state.select(Some(0));
+                            search_query.clear();
                         }
                     }
                     KeyCode::Enter => {
@@ -305,14 +390,32 @@ pub fn apply_percentage_view(
                             show_currency_popup = true;
                             currency_group_index = 0;
                             currency_list_state.select(Some(0));
+                            search_query.clear();
                         } else if show_currency_popup {
+                            let groups =
+                                [&CurrencyGroup::G3, &CurrencyGroup::G10, &CurrencyGroup::All];
+                            let full_list = groups[currency_group_index].list();
+                            let filtered_list: Vec<String> = if search_query.is_empty() {
+                                full_list.clone()
+                            } else {
+                                full_list
+                                    .iter()
+                                    .filter(|c| {
+                                        c.to_lowercase().contains(&search_query.to_lowercase())
+                                    })
+                                    .cloned()
+                                    .collect()
+                            };
                             if let Some(selected) = currency_list_state.selected() {
-                                selected_currency_idx = selected;
+                                if !filtered_list.is_empty() {
+                                    selected_currency = filtered_list[selected].clone();
+                                }
                                 result = Some(calculate_result(
                                     &input_base,
                                     &input_rate,
-                                    selected_currency_idx,
+                                    &selected_currency,
                                 ));
+                                search_query.clear();
                                 show_currency_popup = false;
                             }
                         } else {
@@ -328,7 +431,7 @@ pub fn apply_percentage_view(
                                 result = Some(calculate_result(
                                     &input_base,
                                     &input_rate,
-                                    selected_currency_idx,
+                                    &selected_currency,
                                 ));
                             }
                             1 => {
@@ -336,10 +439,16 @@ pub fn apply_percentage_view(
                                 result = Some(calculate_result(
                                     &input_base,
                                     &input_rate,
-                                    selected_currency_idx,
+                                    &selected_currency,
                                 ));
                             }
                             _ => {}
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        if show_currency_popup {
+                            search_query.push(c);
+                            currency_list_state.select(Some(0));
                         }
                     }
                     _ => {}
