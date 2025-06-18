@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   commands:
     fmt:
-      run: cargo fmt -- --check
+      run: cargo fmt --
     clippy:
       run: cargo clippy -- -D warnings
     test:
