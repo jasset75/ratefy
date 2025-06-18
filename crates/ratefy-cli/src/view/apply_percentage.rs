@@ -43,6 +43,10 @@ pub fn apply_percentage_view(
     let mut step = 0;
     let mut result: Option<Result<(Decimal, String), String>> = None;
 
+    let mut show_currency_popup = false;
+    let mut currency_group_index = 0; // 0 = G3, 1 = G10, 2 = All
+    let mut currency_list_state = ListState::default();
+
     let mut cursor_visible = true;
     let mut last_cursor_toggle = Instant::now();
 
@@ -191,6 +195,42 @@ pub fn apply_percentage_view(
             let legend_paragraph = Paragraph::new(Text::from(legend_text))
                 .style(Style::default().fg(ratatui::style::Color::White));
             f.render_widget(legend_paragraph, chunks[5]);
+
+            if show_currency_popup {
+                use ratatui::widgets::Clear;
+                let groups = [&CurrencyGroup::G3, &CurrencyGroup::G10, &CurrencyGroup::All];
+                let currencies = groups[currency_group_index].list();
+                let popup_area = ratatui::layout::Rect {
+                    x: viewport.x + 5,
+                    y: viewport.y + 5,
+                    width: 30,
+                    height: 10,
+                };
+                let items: Vec<ListItem> = currencies
+                    .iter()
+                    .map(|c| ListItem::new(c.to_string()))
+                    .collect();
+                f.render_widget(Clear, popup_area);
+                let group_titles = ["G3 ▶", "◀ G10 ▶", "◀ ALL"];
+                let selected = currency_list_state.selected().unwrap_or(0);
+                let list_len = currencies.len();
+                let mut scroll_hint = String::new();
+                if selected > 0 {
+                    scroll_hint.push('↑');
+                }
+                if selected + 1 < list_len {
+                    scroll_hint.push('↓');
+                }
+                let title = format!("{} {}", group_titles[currency_group_index], scroll_hint);
+                let list = List::new(items)
+                    .block(Block::default().title(title).borders(Borders::ALL))
+                    .highlight_style(
+                        Style::default()
+                            .fg(ratatui::style::Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    );
+                f.render_stateful_widget(list, popup_area, &mut currency_list_state);
+            }
         })?;
 
         if event::poll(std::time::Duration::from_millis(250))? {
@@ -223,33 +263,60 @@ pub fn apply_percentage_view(
                         step = if step == 0 { 2 } else { step - 1 };
                     }
                     KeyCode::Up => {
-                        if step == 2 && selected_currency_idx > 0 {
-                            selected_currency_idx -= 1;
-                            result = Some(calculate_result(
-                                &input_base,
-                                &input_rate,
-                                selected_currency_idx,
-                            ));
+                        if show_currency_popup {
+                            if let Some(selected) = currency_list_state.selected() {
+                                if selected > 0 {
+                                    currency_list_state.select(Some(selected - 1));
+                                }
+                            }
                         } else if step != 0 {
                             step -= 1;
                         }
                     }
                     KeyCode::Down => {
-                        if step == 2 && selected_currency_idx + 1 < CurrencyGroup::G10.list().len()
-                        {
-                            selected_currency_idx += 1;
-                            result = Some(calculate_result(
-                                &input_base,
-                                &input_rate,
-                                selected_currency_idx,
-                            ));
+                        if show_currency_popup {
+                            let selected = currency_list_state.selected().unwrap_or(0);
+                            let list_len = match currency_group_index {
+                                0 => CurrencyGroup::G3.list().len(),
+                                1 => CurrencyGroup::G10.list().len(),
+                                _ => CurrencyGroup::All.list().len(),
+                            };
+                            if selected + 1 < list_len {
+                                currency_list_state.select(Some(selected + 1));
+                            }
                         } else {
                             step = (step + 1) % 3;
                         }
                     }
+                    KeyCode::Right => {
+                        if show_currency_popup {
+                            currency_group_index = (currency_group_index + 1) % 3;
+                            currency_list_state.select(Some(0));
+                        }
+                    }
+                    KeyCode::Left => {
+                        if show_currency_popup && currency_group_index > 0 {
+                            currency_group_index -= 1;
+                            currency_list_state.select(Some(0));
+                        }
+                    }
                     KeyCode::Enter => {
-                        if step < 3 {
-                            step += 1;
+                        if step == 2 && !show_currency_popup {
+                            show_currency_popup = true;
+                            currency_group_index = 0;
+                            currency_list_state.select(Some(0));
+                        } else if show_currency_popup {
+                            if let Some(selected) = currency_list_state.selected() {
+                                selected_currency_idx = selected;
+                                result = Some(calculate_result(
+                                    &input_base,
+                                    &input_rate,
+                                    selected_currency_idx,
+                                ));
+                                show_currency_popup = false;
+                            }
+                        } else {
+                            step = (step + 1) % 3;
                         }
                     }
                     KeyCode::Char(c)
