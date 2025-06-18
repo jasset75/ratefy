@@ -12,6 +12,7 @@ use ratefy_lib::apply_percentage_str;
 use ratefy_lib::money::CurrencyGroup;
 use rust_decimal::Decimal;
 use std::io;
+use std::time::{Duration, Instant};
 
 /// Helper to calculate result and store error message if any
 fn calculate_result(
@@ -42,7 +43,14 @@ pub fn apply_percentage_view(
     let mut step = 0;
     let mut result: Option<Result<(Decimal, String), String>> = None;
 
+    let mut cursor_visible = true;
+    let mut last_cursor_toggle = Instant::now();
+
     loop {
+        if last_cursor_toggle.elapsed() >= Duration::from_millis(500) {
+            cursor_visible = !cursor_visible;
+            last_cursor_toggle = Instant::now();
+        }
         terminal.draw(|f| {
             let outer = f.size();
 
@@ -68,7 +76,12 @@ pub fn apply_percentage_view(
                 VerticalAlign::Bottom => outer.y + outer.height.saturating_sub(height),
             };
 
-            let viewport = ratatui::layout::Rect { x, y, width, height };
+            let viewport = ratatui::layout::Rect {
+                x,
+                y,
+                width,
+                height,
+            };
             if show_border {
                 let frame_block = Block::default()
                     .borders(Borders::ALL)
@@ -98,8 +111,17 @@ pub fn apply_percentage_view(
             } else {
                 Style::default().fg(ratatui::style::Color::White)
             };
-            let base_input = Paragraph::new(Text::from(input_base.as_str()))
-                .block(Block::default().title("Enter base value").borders(Borders::ALL))
+            let base_display = if step == 0 && cursor_visible {
+                format!("{}▌", input_base)
+            } else {
+                input_base.clone()
+            };
+            let base_input = Paragraph::new(Text::from(base_display))
+                .block(
+                    Block::default()
+                        .title("Enter base value")
+                        .borders(Borders::ALL),
+                )
                 .style(base_style);
             f.render_widget(base_input, chunks[0]);
 
@@ -111,8 +133,17 @@ pub fn apply_percentage_view(
             } else {
                 Style::default().fg(ratatui::style::Color::White)
             };
-            let rate_input = Paragraph::new(Text::from(input_rate.as_str()))
-                .block(Block::default().title("Enter percentage rate").borders(Borders::ALL))
+            let rate_display = if step == 1 && cursor_visible {
+                format!("{}▌", input_rate)
+            } else {
+                input_rate.clone()
+            };
+            let rate_input = Paragraph::new(Text::from(rate_display))
+                .block(
+                    Block::default()
+                        .title("Enter percentage rate")
+                        .borders(Borders::ALL),
+                )
                 .style(rate_style);
             f.render_widget(rate_input, chunks[1]);
 
@@ -125,7 +156,11 @@ pub fn apply_percentage_view(
             let mut state = ListState::default();
             state.select(Some(selected_currency_idx));
             let currency_list = List::new(items)
-                .block(Block::default().title("Select currency").borders(Borders::ALL))
+                .block(
+                    Block::default()
+                        .title("Select currency")
+                        .borders(Borders::ALL),
+                )
                 .highlight_style(if step == 2 {
                     Style::default()
                         .fg(ratatui::style::Color::Yellow)
@@ -146,19 +181,15 @@ pub fn apply_percentage_view(
                 None => "Result will appear here.".to_string(),
             };
             let result_paragraph = Paragraph::new(Text::from(msg))
-                .block(Block::default().title("Output").borders(Borders::ALL))
-                .style(if step == 3 {
-                    Style::default().fg(ratatui::style::Color::Yellow)
-                } else {
-                    Style::default().fg(ratatui::style::Color::White)
-                });
+                .style(Style::default().fg(ratatui::style::Color::White))
+                .block(Block::default().title("Output").borders(Borders::ALL));
             f.render_widget(result_paragraph, chunks[4]);
 
             // Legend
             let legend_text =
                 "TAB: next | Shift+TAB: prev | ↑↓: navigate | Enter: confirm | ESC: exit";
-            let legend_paragraph =
-                Paragraph::new(Text::from(legend_text)).style(Style::default().fg(ratatui::style::Color::White));
+            let legend_paragraph = Paragraph::new(Text::from(legend_text))
+                .style(Style::default().fg(ratatui::style::Color::White));
             f.render_widget(legend_paragraph, chunks[5]);
         })?;
 
@@ -169,34 +200,51 @@ pub fn apply_percentage_view(
                     KeyCode::Backspace => match step {
                         0 => {
                             input_base.pop();
-                            result = Some(calculate_result(&input_base, &input_rate, selected_currency_idx));
+                            result = Some(calculate_result(
+                                &input_base,
+                                &input_rate,
+                                selected_currency_idx,
+                            ));
                         }
                         1 => {
                             input_rate.pop();
-                            result = Some(calculate_result(&input_base, &input_rate, selected_currency_idx));
+                            result = Some(calculate_result(
+                                &input_base,
+                                &input_rate,
+                                selected_currency_idx,
+                            ));
                         }
                         _ => {}
                     },
                     KeyCode::Tab => {
-                        step = (step + 1) % 4;
+                        step = (step + 1) % 3;
                     }
                     KeyCode::BackTab => {
-                        step = if step == 0 { 3 } else { step - 1 };
+                        step = if step == 0 { 2 } else { step - 1 };
                     }
                     KeyCode::Up => {
                         if step == 2 && selected_currency_idx > 0 {
                             selected_currency_idx -= 1;
-                            result = Some(calculate_result(&input_base, &input_rate, selected_currency_idx));
+                            result = Some(calculate_result(
+                                &input_base,
+                                &input_rate,
+                                selected_currency_idx,
+                            ));
                         } else if step != 0 {
                             step -= 1;
                         }
                     }
                     KeyCode::Down => {
-                        if step == 2 && selected_currency_idx + 1 < CurrencyGroup::G10.list().len() {
+                        if step == 2 && selected_currency_idx + 1 < CurrencyGroup::G10.list().len()
+                        {
                             selected_currency_idx += 1;
-                            result = Some(calculate_result(&input_base, &input_rate, selected_currency_idx));
+                            result = Some(calculate_result(
+                                &input_base,
+                                &input_rate,
+                                selected_currency_idx,
+                            ));
                         } else {
-                            step = (step + 1) % 4;
+                            step = (step + 1) % 3;
                         }
                     }
                     KeyCode::Enter => {
@@ -210,11 +258,19 @@ pub fn apply_percentage_view(
                         match step {
                             0 => {
                                 input_base.push(c);
-                                result = Some(calculate_result(&input_base, &input_rate, selected_currency_idx));
+                                result = Some(calculate_result(
+                                    &input_base,
+                                    &input_rate,
+                                    selected_currency_idx,
+                                ));
                             }
                             1 => {
                                 input_rate.push(c);
-                                result = Some(calculate_result(&input_base, &input_rate, selected_currency_idx));
+                                result = Some(calculate_result(
+                                    &input_base,
+                                    &input_rate,
+                                    selected_currency_idx,
+                                ));
                             }
                             _ => {}
                         }
